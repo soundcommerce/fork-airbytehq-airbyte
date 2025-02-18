@@ -5,7 +5,7 @@ name = "airbyte-cdk"
 version = "0.50.2"
 description = "A framework for writing Airbyte Connectors."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
     {file = "airbyte-cdk-0.50.2.tar.gz", hash = "sha256:de765e720e446758b436aff360c36c33f8b085be46267422d1a4b743d3da1566"},
     {file = "airbyte_cdk-0.50.2-py3-none-any.whl", hash = "sha256:d0a304fd6659ea36391e88f6a6c7056af1ca149922ae97c2662656f05767d793"},
@@ -23,7 +23,7 @@ Jinja2 = ">=3.1.2,<3.2.0"
 jsonref = ">=0.2,<1.0"
 jsonschema = ">=3.2.0,<3.3.0"
 pendulum = "*"
-pydantic = ">=1.9.2,<2.0.0"
+pydantic = ">=2.0.0"
 python-dateutil = "*"
 PyYAML = ">=6.0.1"
 requests = "*"
