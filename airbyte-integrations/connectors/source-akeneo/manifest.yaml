@@ -27,7 +27,7 @@ definitions:
         type: SimpleRetriever
         requester:
           $ref: "#/definitions/base_requester"
-          path: /products-uuid
+          path: /products
           http_method: GET
         record_selector:
           type: RecordSelector
