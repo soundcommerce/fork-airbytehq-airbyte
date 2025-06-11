@@ -1,4 +1,4 @@
-version: 5.16.0
+version: 5.17.0
 
 type: DeclarativeSource
 
@@ -420,6 +420,78 @@ definitions:
         type: InlineSchemaLoader
         schema:
           $ref: "#/schemas/measure_families"
+    product_models:
+      type: DeclarativeStream
+      name: product_models
+      primary_key:
+        - code
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          path: /product-models
+          http_method: GET
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+              - _embedded
+              - items
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page
+          page_size_option:
+            type: RequestOption
+            field_name: limit
+            inject_into: request_parameter
+          pagination_strategy:
+            type: PageIncrement
+            page_size: 100
+            start_from_page: 1
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $ref: "#/schemas/product_models"
+    reference_entities:
+      type: DeclarativeStream
+      name: reference_entities
+      primary_key:
+        - code
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          path: /reference-entities
+          http_method: GET
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+              - _embedded
+              - items
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page
+          page_size_option:
+            type: RequestOption
+            field_name: limit
+            inject_into: request_parameter
+          pagination_strategy:
+            type: PageIncrement
+            page_size: 100
+            start_from_page: 1
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $ref: "#/schemas/reference_entities"
   base_requester:
     type: HttpRequester
     url_base: "{{ config[\"host\"] }}/api/rest/v1"
@@ -458,6 +530,8 @@ streams:
   - $ref: "#/definitions/streams/locales"
   - $ref: "#/definitions/streams/currencies"
   - $ref: "#/definitions/streams/measure_families"
+  - $ref: "#/definitions/streams/product_models"
+  - $ref: "#/definitions/streams/reference_entities"
 
 spec:
   type: Spec
@@ -6687,5 +6761,194 @@ schemas:
               type:
                 - string
                 - "null"
+    required:
+      - code
+  product_models:
+    type: object
+    $schema: http://json-schema.org/schema#
+    additionalProperties: true
+    properties:
+      metadata:
+        type:
+          - object
+          - "null"
+        properties:
+          workflow_status:
+            type:
+              - string
+              - "null"
+      _links:
+        type:
+          - object
+          - "null"
+        properties:
+          self:
+            type:
+              - object
+              - "null"
+            properties:
+              href:
+                type:
+                  - string
+                  - "null"
+      associations:
+        type:
+          - object
+          - "null"
+        properties:
+          PACK:
+            type:
+              - object
+              - "null"
+            properties:
+              groups:
+                type:
+                  - array
+                  - "null"
+              product_models:
+                type:
+                  - array
+                  - "null"
+              products:
+                type:
+                  - array
+                  - "null"
+          SUBSTITUTION:
+            type:
+              - object
+              - "null"
+            properties:
+              groups:
+                type:
+                  - array
+                  - "null"
+              product_models:
+                type:
+                  - array
+                  - "null"
+                items:
+                  type:
+                    - string
+                    - "null"
+              products:
+                type:
+                  - array
+                  - "null"
+                items:
+                  type:
+                    - string
+                    - "null"
+          UPSELL:
+            type:
+              - object
+              - "null"
+            properties:
+              groups:
+                type:
+                  - array
+                  - "null"
+              product_models:
+                type:
+                  - array
+                  - "null"
+              products:
+                type:
+                  - array
+                  - "null"
+          X_SELL:
+            type:
+              - object
+              - "null"
+            properties:
+              groups:
+                type:
+                  - array
+                  - "null"
+              product_models:
+                type:
+                  - array
+                  - "null"
+                items:
+                  type:
+                    - string
+                    - "null"
+              products:
+                type:
+                  - array
+                  - "null"
+                items:
+                  type:
+                    - string
+                    - "null"
+      categories:
+        type:
+          - array
+          - "null"
+        items:
+          type:
+            - string
+            - "null"
+      created:
+        type:
+          - string
+          - "null"
+      family:
+        type:
+          - string
+          - "null"
+      parent:
+        type:
+          - string
+          - "null"
+      quantified_associations:
+        type:
+          - object
+          - "null"
+      updated:
+        type:
+          - string
+          - "null"
+      code:
+        type: string
+      values:
+        type:
+          - object
+          - "null"
+    required:
+      - code
+  reference_entities:
+    type: object
+    $schema: http://json-schema.org/schema#
+    additionalProperties: true
+    properties:
+      _links:
+        type:
+          - object
+          - "null"
+        properties:
+          self:
+            type:
+              - object
+              - "null"
+            properties:
+              href:
+                type:
+                  - string
+                  - "null"
+      code:
+        type: string
+      labels:
+        type:
+          - object
+          - "null"
+        properties:
+          localeCode:
+            type:
+              - string
+              - "null"
+      image:
+        type:
+          - string
+          - "null"
     required:
       - code
