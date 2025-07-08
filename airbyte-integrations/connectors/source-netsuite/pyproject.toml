@@ -17,7 +17,7 @@ include = "source_netsuite"
 
 [tool.poetry.dependencies]
 python = "^3.9,<3.12"
-airbyte-cdk = "^1"
+airbyte-cdk = "==5.17.0"
 requests-oauthlib = "^2.0.0"
 
 [tool.poetry.scripts]
