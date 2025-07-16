@@ -2,33 +2,42 @@
 # Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
+from abc import ABC
 import dataclasses
 import math
-from dataclasses import dataclass
-from typing import Any, Iterable, List, Optional, Tuple, Any
+from dataclasses import asdict, dataclass
+from typing import Any, Iterable, List, Mapping, Optional, Tuple, Any
 
 import pendulum
 from pendulum.datetime import DateTime, Period
 
 
 @dataclass
-class StreamSlice:
+class IterableStreamSlice:
     start_date: DateTime
     end_date: DateTime
 
     def __iter__(self):
-        return ((field.name, getattr(self, field.name)) for field in dataclasses.fields(self))
+        return (
+            (field.name, getattr(self, field.name))
+            for field in dataclasses.fields(self)
+        )
 
 
-class SliceGenerator:
+class SliceGenerator(ABC):
     """
     Base class for slice generators.
     """
 
-    _start_date: DateTime = None
-    _end_data: DateTime = None
+    _start_date: DateTime
+    _end_data: DateTime | None = None
 
-    def __init__(self, start_date: DateTime, end_date: Optional[DateTime] = None, config: dict | None = None):
+    def __init__(
+        self,
+        start_date: DateTime,
+        end_date: Optional[DateTime] = None,
+        config: dict | None = None,
+    ):
         self._start_date = start_date
         self._end_date = end_date or pendulum.now("UTC")
         self.config = config
@@ -44,22 +53,26 @@ class RangeSliceGenerator(SliceGenerator):
     """
 
     RANGE_LENGTH_DAYS: int = 90
-    _slices: List[StreamSlice] = []
+    _slices: List[IterableStreamSlice] = []
 
     def __init__(self, start_date: DateTime, end_date: Optional[DateTime] = None):
         super().__init__(start_date, end_date)
         self._slices = [
-            StreamSlice(start_date=start, end_date=end)
-            for start, end in self.make_datetime_ranges(self._start_date, self._end_date, self.RANGE_LENGTH_DAYS)
+            IterableStreamSlice(start_date=start, end_date=end)
+            for start, end in self.make_datetime_ranges(
+                self._start_date, self._end_date, self.RANGE_LENGTH_DAYS
+            )
         ]
 
-    def __next__(self) -> StreamSlice:
+    def __next__(self) -> Mapping[str, Any]:
         if not self._slices:
             raise StopIteration()
-        return self._slices.pop(0)
+        return asdict(self._slices.pop(0))
 
     @staticmethod
-    def make_datetime_ranges(start: DateTime, end: DateTime, range_days: int) -> Iterable[Tuple[DateTime, DateTime]]:
+    def make_datetime_ranges(
+        start: DateTime, end: DateTime, range_days: int
+    ) -> Iterable[Tuple[DateTime, DateTime]]:
         """
         Generates list of ranges starting from start up to end date with duration of ranges_days.
         Args:
@@ -113,14 +126,27 @@ class AdjustableSliceGenerator(SliceGenerator):
     max_range_days: int = 180
     range_reduce_factor = 2
 
-    def __init__(self, start_date: DateTime, end_date: Optional[DateTime] = None, config: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        start_date: DateTime,
+        end_date: Optional[DateTime] = None,
+        config: dict[str, Any] | None = None,
+    ):
         super().__init__(start_date, end_date, config)
         if config:
-            self.request_per_minute_limit = config.get("request_per_minute_limit", self.request_per_minute_limit)
-            self.initial_range_days = config.get("initial_range_days", self.initial_range_days)
-            self.default_range_days = config.get("default_range_days", self.default_range_days)
+            self.request_per_minute_limit = config.get(
+                "request_per_minute_limit", self.request_per_minute_limit
+            )
+            self.initial_range_days = config.get(
+                "initial_range_days", self.initial_range_days
+            )
+            self.default_range_days = config.get(
+                "default_range_days", self.default_range_days
+            )
             self.max_range_days = config.get("max_range_days", self.max_range_days)
-            self.range_reduce_factor = config.get("range_reduce_factor", self.range_reduce_factor)
+            self.range_reduce_factor = config.get(
+                "range_reduce_factor", self.range_reduce_factor
+            )
 
         # This variable play important roles: stores length of previos range before
         # next adjusting next slice lenght and provide length of next slice after
@@ -145,23 +171,33 @@ class AdjustableSliceGenerator(SliceGenerator):
         else:
             days_per_minute = self._current_range / minutes_spent
             next_range = math.floor(days_per_minute / self.request_per_minute_limit)
-            self._current_range = min(next_range or self.default_range_days, self.max_range_days)
+            self._current_range = min(
+                next_range or self.default_range_days, self.max_range_days
+            )
         self._range_adjusted = True
 
-    def reduce_range(self) -> StreamSlice:
+    def reduce_range(self) -> IterableStreamSlice:
         """
         This method is supposed to be called when slice processing failed.
         Reset next slice start date to previous one and reduce slice range by
         range_reduce_factor (2 times).
         Returns updated slice to try again.
         """
-        self._current_range = int(max(self._current_range / self.range_reduce_factor, self.initial_range_days))
-        start_date = self._prev_start_date
-        end_date = min(self._end_date, start_date + (pendulum.Duration(days=self._current_range)))
-        self._start_date = end_date
-        return StreamSlice(start_date=start_date, end_date=end_date)
+        self._current_range = int(
+            max(self._current_range / self.range_reduce_factor, self.initial_range_days)
+        )
 
-    def __next__(self) -> StreamSlice:
+        start_date = (
+            self._prev_start_date if self._prev_start_date else self._start_date
+        )
+
+        end_date = min(
+            self._end_date, start_date + (pendulum.Duration(days=self._current_range))
+        )
+        self._start_date = end_date
+        return IterableStreamSlice(start_date=start_date, end_date=end_date)
+
+    def __next__(self) -> Mapping[str, Any]:
         """
         Generates next slice based on prevouis slice processing result. All the
         next slice range calculations should be done after calling adjust_range
@@ -172,9 +208,14 @@ class AdjustableSliceGenerator(SliceGenerator):
             raise StopIteration()
         if not self._range_adjusted:
             self._current_range = self.max_range_days
-        next_start_date = min(self._end_date, self._start_date + pendulum.Duration(days=self._current_range))
-        slice = StreamSlice(start_date=self._start_date, end_date=next_start_date)
+        next_start_date = min(
+            self._end_date,
+            self._start_date + pendulum.Duration(days=self._current_range),
+        )
+        slice = IterableStreamSlice(
+            start_date=self._start_date, end_date=next_start_date
+        )
         self._prev_start_date = self._start_date
         self._start_date = next_start_date
         self._range_adjusted = False
-        return slice
+        return asdict(slice)
