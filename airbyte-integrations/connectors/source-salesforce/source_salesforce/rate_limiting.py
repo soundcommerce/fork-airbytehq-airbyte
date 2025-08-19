@@ -84,7 +84,8 @@ class SalesforceErrorHandler(ErrorHandler):
                     # Important: this means that there are no retry for Salesforce jobs that once they fail. If we want to enable retry,
                     # we will need to be more granular by reading the `errorMessage`
                     raise BulkNotSupportedException(f"Query job with id: `{response.json().get('id')}` failed")
-                return ErrorResolution(ResponseAction.IGNORE, None, None)
+                # Return success instead of ignore to reduce log noise
+                return ErrorResolution(ResponseAction.SUCCESS, None, None)
 
             if not (400 <= response.status_code < 500) or response.status_code in _RETRYABLE_400_STATUS_CODES:
                 return ErrorResolution(

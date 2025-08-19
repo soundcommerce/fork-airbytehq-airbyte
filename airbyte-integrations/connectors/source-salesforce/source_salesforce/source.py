@@ -65,18 +65,24 @@ class SourceSalesforce(ConcurrentSourceAdapter):
     message_repository = InMemoryMessageRepository(Level(AirbyteLogFormatter.level_mapping[logger.level]))
 
     def __init__(self, catalog: Optional[ConfiguredAirbyteCatalog], config: Optional[Mapping[str, Any]], state: Optional[TState], **kwargs):
+        job_limit: int | None = None
         if config:
             concurrency_level = min(config.get("num_workers", _DEFAULT_CONCURRENCY), _MAX_CONCURRENCY)
+            job_limit = config.get("concurrent_job_limit", self.spec(logger=logger).connectionSpecification["properties"].get("concurrent_job_limit", {}).get("properties", {}).get("maximum"))
         else:
             concurrency_level = _DEFAULT_CONCURRENCY
+
         logger.info(f"Using concurrent cdk with concurrency level {concurrency_level}")
+
         concurrent_source = ConcurrentSource.create(
             concurrency_level, concurrency_level // 2, logger, self._slice_logger, self.message_repository
         )
+
         super().__init__(concurrent_source)
+
         self.catalog = catalog
         self.state = state
-        self._job_tracker = JobTracker(limit=5)
+        self._job_tracker = JobTracker(limit=(job_limit or 5))
 
     @staticmethod
     def _get_sf_object(config: Mapping[str, Any]) -> Salesforce:
@@ -107,7 +113,7 @@ class SourceSalesforce(ConcurrentSourceAdapter):
         return True, None
 
     @classmethod
-    def _get_api_type(cls, stream_name: str, json_schema: Mapping[str, Any], force_use_bulk_api: bool) -> str:
+    def _get_api_type(cls, stream_name: str, json_schema: Mapping[str, Any], force_use_bulk_api: bool, force_rest_api: bool) -> str:
         """Get proper API type: rest or bulk"""
         # Salesforce BULK API currently does not support loading fields with data type base64 and compound data
         properties = json_schema.get("properties", {})
@@ -125,7 +131,7 @@ class SourceSalesforce(ConcurrentSourceAdapter):
             return "bulk"
         if properties_not_supported_by_bulk:
             return "rest"
-        return "bulk"
+        return "rest" if force_rest_api else "bulk"
 
     @classmethod
     def _get_stream_type(cls, stream_name: str, api_type: str):
@@ -160,7 +166,8 @@ class SourceSalesforce(ConcurrentSourceAdapter):
             "message_repository": self.message_repository,
         }
 
-        api_type = self._get_api_type(stream_name, json_schema, config.get("force_use_bulk_api", False))
+        api_type = self._get_api_type(stream_name, json_schema, config.get("force_use_bulk_api", False), config.get("force_rest_api", False))
+        logger.info(f"DEBUG: Stream {stream_name} API type determined: {api_type}")
         full_refresh, incremental = self._get_stream_type(stream_name, api_type)
         if replication_key and stream_name not in UNSUPPORTED_FILTERING_STREAMS:
             stream_class = incremental
@@ -197,7 +204,8 @@ class SourceSalesforce(ConcurrentSourceAdapter):
 
             stream = stream_class(**kwargs)
 
-            api_type = self._get_api_type(stream_name, json_schema, config.get("force_use_bulk_api", False))
+            api_type = self._get_api_type(stream_name, json_schema, config.get("force_use_bulk_api", False),
+                                          config.get("force_rest_api", False))
             if api_type == "rest" and not stream.primary_key and stream.too_many_properties:
                 logger.warning(
                     f"Can not instantiate stream {stream_name}. It is not supported by the BULK API and can not be "
