@@ -167,7 +167,6 @@ class SourceSalesforce(ConcurrentSourceAdapter):
         }
 
         api_type = self._get_api_type(stream_name, json_schema, config.get("force_use_bulk_api", False), config.get("force_rest_api", False))
-        logger.info(f"DEBUG: Stream {stream_name} API type determined: {api_type}")
         full_refresh, incremental = self._get_stream_type(stream_name, api_type)
         if replication_key and stream_name not in UNSUPPORTED_FILTERING_STREAMS:
             stream_class = incremental
