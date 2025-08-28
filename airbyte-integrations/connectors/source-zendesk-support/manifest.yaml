@@ -160,8 +160,8 @@ definitions:
       record_selector:
         type: RecordSelector
         extractor:
-          type: CustomRecordExtractor
-          class_name: source_declarative_manifest.components.ZendeskSupportAttributeDefinitionsExtractor
+          type: DpathExtractor
+          field_path: ["attributes"]
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -172,12 +172,14 @@ definitions:
       data_path: "attributes"
 
   brands_stream:
-    # ToDo: add incremental sync
-    $ref: "#/definitions/base_stream"
+    $ref: "#/definitions/base_incremental_stream"
     retriever:
       $ref: "#/definitions/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    incremental_sync:
+      $ref: "#/definitions/cursor_incremental_sync"
+      cursor_field: "updated_at"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -185,6 +187,8 @@ definitions:
     $parameters:
       name: "brands"
       path: "brands"
+      cursor_field: "updated_at"
+      cursor_filter: "start_time"
       primary_key: "id"
 
   user_fields_stream:
@@ -859,6 +863,7 @@ definitions:
           type: RequestPath
     incremental_sync:
       $ref: "#/definitions/semi_incremental_stream/incremental_sync"
+      cursor_field: "created_at"
       is_data_feed: true
     schema_loader:
       type: InlineSchemaLoader
@@ -883,11 +888,13 @@ definitions:
       record_selector:
         type: RecordSelector
         extractor:
-          type: CustomRecordExtractor
-          class_name: source_declarative_manifest.components.ZendeskSupportExtractorEvents
+          type: DpathExtractor
           field_path: ["ticket_events", "*", "child_events", "*"]
       paginator:
         $ref: "#/definitions/end_of_stream_paginator"
+    incremental_sync:
+      $ref: "#/definitions/cursor_incremental_sync"
+      cursor_field: "created_at"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -916,31 +923,7 @@ definitions:
       primary_key: "id"
 
   ticket_forms_stream:
-    $ref: "#/definitions/semi_incremental_stream"
-    retriever:
-      $ref: "#/definitions/retriever"
-      requester:
-        $ref: "#/definitions/retriever/requester"
-        error_handler:
-          type: CompositeErrorHandler
-          error_handlers:
-            - type: DefaultErrorHandler
-              response_filters:
-                - http_codes: [403, 404]
-                  action: FAIL # fail as this stream used to define enterprise plan
-                  error_message: "Unable to read data for stream {{ parameters.get('name') }} due to an issue with permissions. Please ensure that your account has the necessary access level. You can try to re-authenticate on the Set Up Connector page or you can disable stream {{ parameters.get('name') }} on the Schema Tab. Error message: {{ response.get('error') }}"
-            - type: DefaultErrorHandler
-              backoff_strategies:
-                - type: WaitTimeFromHeader
-                  header: Retry-After
-      paginator:
-        type: DefaultPaginator
-        pagination_strategy:
-          type: CursorPagination
-          cursor_value: '{{ response.get("next_page", {}) }}'
-          stop_condition: "{{ last_page_size == 0 }}"
-        page_token_option:
-          type: RequestPath
+    $ref: "#/definitions/base_stream"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -948,7 +931,6 @@ definitions:
     $parameters:
       name: "ticket_forms"
       path: "ticket_forms"
-      cursor_field: "updated_at"
       primary_key: "id"
 
   ticket_metric_events_stream:
@@ -956,8 +938,26 @@ definitions:
     retriever:
       $ref: "#/definitions/retriever"
       ignore_stream_slicer_parameters_on_paginated_requests: true
+      requester:
+        $ref: "#/definitions/retriever/requester"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    incremental_sync:
+      type: DatetimeBasedCursor
+      cursor_datetime_formats:
+        - "%Y-%m-%dT%H:%M:%SZ"
+        - "%Y-%m-%dT%H:%M:%S%z"
+      datetime_format: "%s"
+      cursor_field: "time"
+      start_datetime:
+        datetime: "{{ config.get('start_date') or day_delta(-730, '%Y-%m-%dT%H:%M:%SZ') }}"
+        datetime_format: "%Y-%m-%dT%H:%M:%SZ"
+      start_time_option:
+        inject_into: request_parameter
+        field_name: "start_time"
+        type: RequestOption
+        datetime_format: "%s"
+
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -4437,6 +4437,7 @@ schemas:
         type:
           - "null"
           - string
+        format: date-time
       instance_id:
         description: Unique identifier for the specific instance of the metric event
         type:
