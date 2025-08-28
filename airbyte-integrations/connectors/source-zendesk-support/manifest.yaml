@@ -5,7 +5,7 @@ type: DeclarativeSource
 check:
   type: CheckStream
   stream_names:
-    - Tags
+    - tags
 
 definitions:
   bearer_authenticator:
@@ -61,8 +61,6 @@ definitions:
 
   base_stream:
     type: DeclarativeStream
-    schema_loader:
-      type: JsonFileSchemaLoader
     retriever:
       $ref: "#/definitions/retriever"
 
@@ -145,11 +143,17 @@ definitions:
   # Full-refresh streams
   account_attributes_stream:
     $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
     $parameters:
       name: "account_attributes"
       path: "routing/attributes"
       data_path: "attributes"
       primary_key: "id"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/account_attributes"
 
   attribute_definitions_stream:
     $ref: "#/definitions/base_stream"
@@ -158,8 +162,12 @@ definitions:
       record_selector:
         type: RecordSelector
         extractor:
-          type: CustomRecordExtractor
-          class_name: source_zendesk_support.components.ZendeskSupportAttributeDefinitionsExtractor
+          type: DpathExtractor
+          field_path: ["attributes"]
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/attribute_definitions"
     $parameters:
       name: "attribute_definitions"
       path: "routing/attributes/definitions"
@@ -187,6 +195,12 @@ definitions:
 
   user_fields_stream:
     $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/user_fields"
     $parameters:
       name: "user_fields"
       path: "user_fields"
@@ -198,6 +212,10 @@ definitions:
       $ref: "#/definitions/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/tags"
     $parameters:
       name: "tags"
       path: "tags"
@@ -209,6 +227,10 @@ definitions:
       $ref: "#/definitions/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/automations"
     $parameters:
       name: "automations"
       path: "automations"
@@ -220,6 +242,10 @@ definitions:
       $ref: "#/definitions/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/categories"
     $parameters:
       name: "categories"
       path: "help_center/categories"
@@ -231,6 +257,10 @@ definitions:
       $ref: "#/definitions/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/sections"
     $parameters:
       name: "sections"
       path: "help_center/sections"
@@ -242,8 +272,9 @@ definitions:
     name: "articles"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/articles.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/articles"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -273,8 +304,9 @@ definitions:
     name: "article_attachments"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/article_attachments.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/article_attachments"
     retriever:
       $ref: "#/definitions/retriever"
       ignore_stream_slicer_parameters_on_paginated_requests: true
@@ -316,8 +348,9 @@ definitions:
     name: "article_comments"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/article_comments.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/article_comments"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -356,8 +389,9 @@ definitions:
     name: "article_votes"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/votes.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/votes"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -390,8 +424,9 @@ definitions:
     name: "article_comment_votes"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/votes.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/votes"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -440,6 +475,10 @@ definitions:
       cursor_field: "{{ parameters.get('cursor_field',  'updated_at') }}"
       start_datetime:
         datetime: "{{ config.get('start_date') or day_delta(-3650, '%Y-%m-%dT%H:%M:%SZ') }}"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/audit_logs"
     $parameters:
       name: "audit_logs"
       path: "audit_logs"
@@ -459,6 +498,10 @@ definitions:
           stop_condition: "{{ last_page_size == 0 }}"
         page_token_option:
           type: RequestPath
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/custom_roles"
     $parameters:
       name: "custom_roles"
       path: "custom_roles"
@@ -472,6 +515,10 @@ definitions:
       $ref: "#/definitions/semi_incremental_stream/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/group_memberships"
     $parameters:
       name: "group_memberships"
       path: "group_memberships"
@@ -480,6 +527,12 @@ definitions:
 
   groups_stream:
     $ref: "#/definitions/semi_incremental_stream"
+    retriever:
+      $ref: "#/definitions/semi_incremental_stream/retriever"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/groups"
     $parameters:
       name: "groups"
       path: "groups"
@@ -499,6 +552,10 @@ definitions:
         $ref: "#/definitions/links_next_paginator"
     incremental_sync:
       $ref: "#/definitions/semi_incremental_stream/incremental_sync"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/macros"
     $parameters:
       name: "macros"
       path: "macros"
@@ -507,6 +564,12 @@ definitions:
 
   organization_fields_stream:
     $ref: "#/definitions/semi_incremental_stream"
+    retriever:
+      $ref: "#/definitions/semi_incremental_stream/retriever"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/organization_fields"
     $parameters:
       name: "organization_fields"
       path: "organization_fields"
@@ -519,6 +582,10 @@ definitions:
       $ref: "#/definitions/semi_incremental_stream/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/organization_memberships"
     $parameters:
       name: "organization_memberships"
       path: "organization_memberships"
@@ -532,6 +599,10 @@ definitions:
       ignore_stream_slicer_parameters_on_paginated_requests: true
       paginator:
         $ref: "#/definitions/end_of_stream_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/organizations"
     $parameters:
       name: "organizations"
       path: "incremental/organizations"
@@ -544,8 +615,9 @@ definitions:
     name: "posts"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/posts.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/posts"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -570,8 +642,9 @@ definitions:
     name: "post_comments"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/post_comments.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/post_comments"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -610,8 +683,9 @@ definitions:
     name: "post_votes"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/votes.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/votes"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -644,8 +718,9 @@ definitions:
     name: "post_comment_votes"
     primary_key: "id"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/votes.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/votes"
     incremental_sync:
       $ref: "#/definitions/cursor_incremental_sync"
       start_time_option:
@@ -683,6 +758,10 @@ definitions:
           sort: "created_at"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/satisfaction_ratings"
     $parameters:
       name: "satisfaction_ratings"
       path: "satisfaction_ratings"
@@ -700,6 +779,10 @@ definitions:
           type: RequestOption
           field_name: "page[size]"
           inject_into: request_parameter
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/schedules"
     $parameters:
       name: "schedules"
       path: "business_hours/schedules.json"
@@ -718,6 +801,10 @@ definitions:
           stop_condition: "{{ last_page_size == 0 }}"
         page_token_option:
           type: RequestPath
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/sla_policies"
     $parameters:
       name: "sla_policies"
       path: "slas/policies.json"
@@ -736,6 +823,10 @@ definitions:
           sort_order: "asc"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/ticket_activities"
     $parameters:
       name: "ticket_activities"
       path: "activities"
@@ -780,7 +871,12 @@ definitions:
           type: RequestPath
     incremental_sync:
       $ref: "#/definitions/semi_incremental_stream/incremental_sync"
+      cursor_field: "created_at"
       is_data_feed: true
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/ticket_audits"
     $parameters:
       name: "ticket_audits"
       path: "ticket_audits"
@@ -834,6 +930,10 @@ definitions:
       $ref: "#/definitions/semi_incremental_stream/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/ticket_fields"
     $parameters:
       name: "ticket_fields"
       path: "ticket_fields"
@@ -899,6 +999,10 @@ definitions:
           sort_order: "desc"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/ticket_skips"
     $parameters:
       name: "ticket_skips"
       path: "skips.json"
@@ -913,6 +1017,10 @@ definitions:
       ignore_stream_slicer_parameters_on_paginated_requests: true
       paginator:
         $ref: "#/definitions/after_url_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/tickets"
     $parameters:
       name: "tickets"
       path: "incremental/tickets/cursor.json"
@@ -924,13 +1032,15 @@ definitions:
     type: StateDelegatingStream
     name: "ticket_metrics"
     schema_loader:
-      type: JsonFileSchemaLoader
-      file_path: "./source_zendesk_support/schemas/ticket_metrics.json"
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/ticket_metrics"
     full_refresh_stream:
       $ref: "#/definitions/base_incremental_stream"
       schema_loader:
-        type: JsonFileSchemaLoader
-        file_path: "./source_zendesk_support/schemas/ticket_metrics.json"
+        type: InlineSchemaLoader
+        schema:
+          $ref: "#/schemas/ticket_metrics"
       name: "ticket_metrics"
       primary_key: "id"
       incremental_sync:
@@ -963,8 +1073,9 @@ definitions:
     incremental_stream:
       $ref: "#/definitions/base_incremental_stream"
       schema_loader:
-        type: JsonFileSchemaLoader
-        file_path: "./source_zendesk_support/schemas/ticket_metrics.json"
+        type: InlineSchemaLoader
+        schema:
+          $ref: "#/schemas/ticket_metrics"
       name: "ticket_metrics"
       primary_key: "id"
       incremental_sync:
@@ -1027,6 +1138,10 @@ definitions:
       $ref: "#/definitions/semi_incremental_stream/retriever"
       paginator:
         $ref: "#/definitions/links_next_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/topics"
     $parameters:
       name: "topics"
       path: "community/topics"
@@ -1035,6 +1150,12 @@ definitions:
 
   triggers_stream:
     $ref: "#/definitions/semi_incremental_stream"
+    retriever:
+      $ref: "#/definitions/semi_incremental_stream/retriever"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/triggers"
     $parameters:
       name: "triggers"
       path: "triggers"
@@ -1048,6 +1169,10 @@ definitions:
       ignore_stream_slicer_parameters_on_paginated_requests: true
       paginator:
         $ref: "#/definitions/after_url_paginator"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/users"
     $parameters:
       name: "users"
       path: "incremental/users/cursor.json"
@@ -1066,6 +1191,10 @@ definitions:
         $ref: "#/definitions/retriever/requester"
         request_parameters:
           include: "identities"
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $ref: "#/schemas/user_identities"
     $parameters:
       name: "user_identities"
       data_path: "identities"
@@ -1118,9 +1247,11 @@ streams:
   - $ref: "#/definitions/triggers_stream"
   - $ref: "#/definitions/users_stream"
   - $ref: "#/definitions/users_identities_stream"
-  - $ref: "#/definitions/ticket_forms_stream"
-  - $ref: "#/definitions/account_attributes_stream"
-  - $ref: "#/definitions/attribute_definitions_stream"
+  # todo: The following streams are enterprise-only streams. However, the low-code CDK does not support
+  #  ConditionalStreams based on an API endpoint. These should be under that component once the CDK supports it.
+  # - $ref: "#/definitions/ticket_forms_stream"
+  # - $ref: "#/definitions/account_attributes_stream"
+  # - $ref: "#/definitions/attribute_definitions_stream"
 
 # Zendesk Support offers four tiers of rate limits:
 # - Team: 200 req/min (3.3 req/sec)
