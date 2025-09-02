@@ -210,6 +210,28 @@ definitions:
       path: "automations"
       primary_key: "id"
 
+  categories_stream:
+    $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
+      paginator:
+        $ref: "#/definitions/links_next_paginator"
+    $parameters:
+      name: "categories"
+      path: "help_center/categories"
+      primary_key: "id"
+
+  sections_stream:
+    $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
+      paginator:
+        $ref: "#/definitions/links_next_paginator"
+    $parameters:
+      name: "sections"
+      path: "help_center/sections"
+      primary_key: "id"
+
   # Incremental cursor-based streams
   audit_logs_stream:
     $ref: "#/definitions/base_incremental_stream"
@@ -387,6 +409,24 @@ definitions:
     $parameters:
       name: "sla_policies"
       path: "slas/policies.json"
+      cursor_field: "updated_at"
+      primary_key: "id"
+
+  group_sla_policies_stream:
+    $ref: "#/definitions/semi_incremental_stream"
+    retriever:
+      $ref: "#/definitions/semi_incremental_stream/retriever"
+      paginator:
+        type: DefaultPaginator
+        pagination_strategy:
+          type: CursorPagination
+          cursor_value: '{{ response.get("next_page", {}) }}'
+          stop_condition: "{{ last_page_size == 0 }}"
+        page_token_option:
+          type: RequestPath
+    $parameters:
+      name: "group_sla_policies"
+      path: "group_slas/policies.json"
       cursor_field: "updated_at"
       primary_key: "id"
 
@@ -587,6 +627,36 @@ definitions:
       cursor_filter: "start_time"
       primary_key: "id"
 
+  users_identities_stream:
+    $ref: "#/definitions/base_incremental_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
+      ignore_stream_slicer_parameters_on_paginated_requests: true
+      paginator:
+        $ref: "#/definitions/after_url_paginator"
+      requester:
+        $ref: "#/definitions/retriever/requester"
+        request_parameters:
+          include: "identities"
+    $parameters:
+      name: "user_identities"
+      data_path: "identities"
+      path: "incremental/users/cursor.json"
+      cursor_field: "updated_at"
+      cursor_filter: "start_time"
+      primary_key: "id"
+
+  custom_ticket_statuses_stream:
+    $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
+      paginator:
+        $ref: "#/definitions/links_next_paginator"
+    $parameters:
+      name: "custom_statuses"
+      path: "custom_statuses"
+      primary_key: "id"
+
 streams:
   # Full refresh streams
   - $ref: "#/definitions/account_attributes_stream"
@@ -595,12 +665,16 @@ streams:
   - $ref: "#/definitions/custom_roles_stream"
   - $ref: "#/definitions/schedules_stream"
   - $ref: "#/definitions/sla_policies_stream"
+  - $ref: "#/definitions/group_sla_policies_stream"
   - $ref: "#/definitions/tags_stream"
   - $ref: "#/definitions/ticket_fields_stream"
   - $ref: "#/definitions/ticket_forms_stream"
   - $ref: "#/definitions/topics_stream"
   - $ref: "#/definitions/user_fields_stream"
   - $ref: "#/definitions/automations_stream"
+  - $ref: "#/definitions/categories_stream"
+  - $ref: "#/definitions/sections_stream"
+  - $ref: "#/definitions/custom_ticket_statuses_stream"
   # Incremental streams
   - $ref: "#/definitions/audit_logs_stream"
   - $ref: "#/definitions/groups_stream"
@@ -617,7 +691,7 @@ streams:
   - $ref: "#/definitions/ticket_skips_stream"
   - $ref: "#/definitions/triggers_stream"
   - $ref: "#/definitions/users_stream"
-
+  - $ref: "#/definitions/users_identities_stream"
 # Zendesk Support offers four tiers of rate limits:
 # - Team: 200 req/min (3.3 req/sec)
 # - Professional: 400 req/min (6.7 req/sec)
