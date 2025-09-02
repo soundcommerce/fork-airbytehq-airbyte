@@ -143,6 +143,8 @@ definitions:
   # Full-refresh streams
   account_attributes_stream:
     $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
     $parameters:
       name: "account_attributes"
       path: "routing/attributes"
@@ -193,6 +195,8 @@ definitions:
 
   user_fields_stream:
     $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -523,6 +527,8 @@ definitions:
 
   groups_stream:
     $ref: "#/definitions/semi_incremental_stream"
+    retriever:
+      $ref: "#/definitions/semi_incremental_stream/retriever"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -558,6 +564,8 @@ definitions:
 
   organization_fields_stream:
     $ref: "#/definitions/semi_incremental_stream"
+    retriever:
+      $ref: "#/definitions/semi_incremental_stream/retriever"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -890,11 +898,29 @@ definitions:
         extractor:
           type: DpathExtractor
           field_path: ["ticket_events", "*", "child_events", "*"]
+        record_filter:
+          type: RecordFilter
+          condition: "{{ record.get('event_type') == 'Comment' }}"
+
       paginator:
         $ref: "#/definitions/end_of_stream_paginator"
     incremental_sync:
-      $ref: "#/definitions/cursor_incremental_sync"
-      cursor_field: "created_at"
+      type: DatetimeBasedCursor
+      cursor_datetime_formats:
+        - "%s"
+      datetime_format: "%s"
+      cursor_field: "end_time_cursor"
+      start_datetime:
+        datetime: "{{ timestamp(config.get('start_date')) | int if config.get('start_date') else day_delta(-730, '%s') }}"
+      start_time_option:
+        inject_into: request_parameter
+        field_name: "start_time"
+        type: RequestOption
+    transformations:
+      - type: AddFields
+        fields:
+          - path: ["end_time_cursor"]
+            value: "{{ stream_slice.get('end_time') }}"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -902,7 +928,7 @@ definitions:
     $parameters:
       name: "ticket_comments"
       path: "incremental/ticket_events.json"
-      cursor_field: "created_at"
+      cursor_field: "end_time_cursor"
       cursor_filter: "start_time"
       primary_key: "id"
 
@@ -924,6 +950,8 @@ definitions:
 
   ticket_forms_stream:
     $ref: "#/definitions/base_stream"
+    retriever:
+      $ref: "#/definitions/retriever"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -1130,6 +1158,8 @@ definitions:
 
   triggers_stream:
     $ref: "#/definitions/semi_incremental_stream"
+    retriever:
+      $ref: "#/definitions/semi_incremental_stream/retriever"
     schema_loader:
       type: InlineSchemaLoader
       schema:
@@ -2909,6 +2939,11 @@ schemas:
           - "null"
           - string
         format: date-time
+      end_time_cursor:
+        description: End time from the API response, used for cursor-based incremental sync progress tracking.
+        type:
+          - "null"
+          - integer
       timestamp:
         description: UNIX timestamp representing the time the ticket comment was created.
         type:
