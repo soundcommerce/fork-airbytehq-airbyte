@@ -1,0 +1,63 @@
+{
+  "type": ["null", "object"],
+  "properties": {
+    "active": {
+      "description": "Indicates whether the custom ticket status is active.",
+      "type": ["null", "boolean"]
+    },
+    "agent_label": {
+      "description": "Label shown to agents for this ticket status.",
+      "type": ["null", "string"]
+    },
+    "created_at": {
+      "description": "Timestamp when the custom ticket status was created.",
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "default": {
+      "description": "Indicates if this is the default ticket status.",
+      "type": ["null", "boolean"]
+    },
+    "description": {
+      "description": "Description of the custom ticket status for agents.",
+      "type": ["null", "string"]
+    },
+    "end_user_description": {
+      "description": "Description of the ticket status shown to end users.",
+      "type": ["null", "string"]
+    },
+    "end_user_label": {
+      "description": "Label shown to end users for this ticket status.",
+      "type": ["null", "string"]
+    },
+    "id": {
+      "description": "Unique identifier for the custom ticket status.",
+      "type": ["null", "integer"]
+    },
+    "raw_agent_label": {
+      "description": "Untranslated agent label for this ticket status.",
+      "type": ["null", "string"]
+    },
+    "raw_description": {
+      "description": "Untranslated description for agents.",
+      "type": ["null", "string"]
+    },
+    "raw_end_user_description": {
+      "description": "Untranslated description shown to end users.",
+      "type": ["null", "string"]
+    },
+    "raw_end_user_label": {
+      "description": "Untranslated label for end users.",
+      "type": ["null", "string"]
+    },
+    "status_category": {
+      "description": "Category of the ticket status (e.g., open, pending, solved).",
+      "type": ["null", "string"]
+    },
+    "updated_at": {
+      "description": "Timestamp when the custom ticket status was last updated.",
+      "type": ["null", "string"],
+      "format": "date-time"
+    }
+  }
+}
